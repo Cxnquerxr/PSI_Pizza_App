@@ -1,4 +1,4 @@
-import { IsArray, ValidateNested, IsInt, Min, IsOptional, IsString, IsDecimal } from 'class-validator';
+import { IsArray, ValidateNested, IsInt, Min, IsOptional, IsString, IsNumber } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class OrderItemDto {
@@ -9,7 +9,7 @@ export class OrderItemDto {
   @Min(1)
   quantity: number;
 
-  @IsDecimal()
+  @IsNumber()
   unit_price: number;
 
   @IsOptional()

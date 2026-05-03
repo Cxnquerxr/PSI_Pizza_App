@@ -1,45 +1,103 @@
 import React, { useState } from 'react';
-import { createOrder, OrderItemPayload } from './api';
+import { createOrder, updateOrderStatus } from './api';
+import type { OrderItemPayload } from './api';
 import './Kiosk.css';
 
-// Mock catalog for simplicity
 const CATALOG = [
-  { id: 1, name: 'Margherita Pizza', price: 12.5 },
-  { id: 2, name: 'Pepperoni Pizza', price: 15.0 },
-  { id: 3, name: 'Coca Cola', price: 2.5 },
-  { id: 4, name: 'Garlic Bread', price: 4.0 },
+  { id: 1, name: 'Margherita', price: 7.9, description: 'Čerstvá mozzarella, rajčinový základ, bazalka' },
+  { id: 2, name: 'Pepperoni Classic', price: 8.9, description: 'Prémiová saláma, rajčinový základ, čerstvá mozzarella' },
+  { id: 3, name: 'Quattro Formaggi', price: 9.9, description: 'Mozzarella, gorgonzola, parmezán, ementál' },
+  { id: 4, name: 'Hawai', price: 8.5, description: 'Šunka, ananás, rajčinový základ, mozzarella' },
+  { id: 5, name: 'Prosciutto', price: 9.5, description: 'Prosciutto crudo, rukola, parmezán, mozzarella' },
+  { id: 6, name: 'Vegetariana', price: 8.9, description: 'Grilovaná zelenina, kukurica, olivy, mozzarella' },
 ];
 
+const ADDONS = [
+  { name: 'Saláma', price: 1.0 },
+  { name: 'Šampiňóny', price: 1.0 },
+  { name: 'Cibuľa', price: 1.0 },
+  { name: 'Slanina', price: 1.0 },
+  { name: 'Čierne Olivy', price: 1.0 },
+  { name: 'Extra mozzarella', price: 1.5 },
+  { name: 'Jalapeňo', price: 1.0 },
+  { name: 'Čerstvé rajčiny', price: 1.0 },
+];
+
+type ViewState = 'idle' | 'menu' | 'customize' | 'cart';
+
 export const Kiosk: React.FC = () => {
+  const [view, setView] = useState<ViewState>('idle');
   const [cart, setCart] = useState<OrderItemPayload[]>([]);
+  const [selectedPizza, setSelectedPizza] = useState<typeof CATALOG[0] | null>(null);
+  
+  // Customize state
+  const [selectedSize, setSelectedSize] = useState('Stredná');
+  const [selectedAddons, setSelectedAddons] = useState<string[]>([]);
+  const [quantity, setQuantity] = useState(1);
+
+  // Cart/Checkout state
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const addToCart = (product: { id: number; name: string; price: number }) => {
-    setCart((prev) => {
-      const existing = prev.find((item) => item.product_id === product.id);
-      if (existing) {
-        return prev.map((item) =>
-          item.product_id === product.id
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
-        );
-      }
-      return [
-        ...prev,
-        {
-          product_id: product.id,
-          quantity: 1,
-          unit_price: product.price,
-          custom_note: `Item: ${product.name}`, // Storing name in note for simple display
-        },
-      ];
-    });
+  const handleOpenCustomize = (pizza: typeof CATALOG[0]) => {
+    setSelectedPizza(pizza);
+    setSelectedSize('Stredná');
+    setSelectedAddons([]);
+    setQuantity(1);
+    setView('customize');
   };
 
-  const calculateTotal = () => {
+  const toggleAddon = (addonName: string) => {
+    setSelectedAddons(prev => 
+      prev.includes(addonName) ? prev.filter(a => a !== addonName) : [...prev, addonName]
+    );
+  };
+
+  const calculateItemTotal = () => {
+    if (!selectedPizza) return 0;
+    let base = selectedPizza.price;
+    // Simple size logic
+    if (selectedSize === 'Malá') base -= 1.0;
+    if (selectedSize === 'Veľká') base += 2.0;
+    if (selectedSize === 'Extra') base += 4.0;
+    
+    let addonsCost = 0;
+    selectedAddons.forEach(a => {
+      const addon = ADDONS.find(x => x.name === a);
+      if (addon) addonsCost += addon.price;
+    });
+
+    return (base + addonsCost) * quantity;
+  };
+
+  const calculateCartTotal = () => {
     return cart.reduce((sum, item) => sum + item.quantity * item.unit_price, 0).toFixed(2);
+  };
+
+  const getCartItemsCount = () => {
+    return cart.reduce((sum, item) => sum + item.quantity, 0);
+  };
+
+  const addToCart = () => {
+    if (!selectedPizza) return;
+    
+    const note = `${selectedPizza.name} (${selectedSize})` + 
+                 (selectedAddons.length > 0 ? ` + ${selectedAddons.join(', ')}` : '');
+    
+    const unitPrice = calculateItemTotal() / quantity;
+
+    setCart(prev => [
+      ...prev,
+      {
+        product_id: selectedPizza.id,
+        quantity: quantity,
+        unit_price: unitPrice,
+        custom_note: note
+      }
+    ]);
+
+    setView('menu');
   };
 
   const handleCheckout = async () => {
@@ -50,9 +108,21 @@ export const Kiosk: React.FC = () => {
     setOrderSuccess(null);
 
     try {
-      const result = await createOrder({ items: cart });
-      setOrderSuccess(result.id);
+      // 1. Create the order
+      const order = await createOrder({ items: cart });
+      
+      // 2. Automatically simulate payment since we have no physical terminal
+      await updateOrderStatus(order.id, 'PAID');
+      
+      setOrderSuccess(order.id);
       setCart([]);
+      
+      // Auto return to idle after 5 seconds
+      setTimeout(() => {
+        setView('idle');
+        setOrderSuccess(null);
+      }, 5000);
+      
     } catch (err: any) {
       setError(err.message || 'Failed to checkout');
     } finally {
@@ -60,66 +130,183 @@ export const Kiosk: React.FC = () => {
     }
   };
 
-  return (
-    <div className="kiosk-container">
-      <header className="kiosk-header">
-        <h1>🍕 Premium Pizzeria Kiosk</h1>
-        <p>Order your favorites with a tap.</p>
-      </header>
-
-      <main className="kiosk-main">
-        <div className="catalog-section">
-          <h2>Menu</h2>
-          <div className="catalog-grid">
-            {CATALOG.map((item) => (
-              <div key={item.id} className="catalog-card" onClick={() => addToCart(item)}>
-                <h3>{item.name}</h3>
-                <p className="price">${item.price.toFixed(2)}</p>
-                <button className="add-btn">+</button>
-              </div>
-            ))}
-          </div>
+  if (view === 'idle') {
+    return (
+      <div className="kiosk-idle" onClick={() => setView('menu')}>
+        <div className="idle-content">
+          <div className="pizza-icon">🍕</div>
+          <h1>Pizza Paradise</h1>
+          <p>Najlepšia pizza v Bratislave</p>
+          <button className="start-btn">Začať objednávku &rarr;</button>
+          <div className="touch-hint">Dotknite sa obrazovky</div>
         </div>
+      </div>
+    );
+  }
 
-        <aside className="cart-section">
-          <h2>Your Order</h2>
+  if (view === 'menu') {
+    return (
+      <div className="kiosk-container white-bg">
+        <header className="kiosk-header-red">
+          <div className="header-left">
+            <div className="pizza-logo-small">🍕</div>
+            <div className="header-text">
+              <h2>Pizza Menu</h2>
+              <p>Vyberte si pizzu z našej chutnej ponuky</p>
+            </div>
+          </div>
+          <button className="cart-icon-btn" onClick={() => setView('cart')}>
+            🛒
+            {getCartItemsCount() > 0 && <span className="cart-badge">{getCartItemsCount()}</span>}
+          </button>
+        </header>
 
-          {error && <div className="alert-error">{error}</div>}
+        <main className="menu-grid">
+          {CATALOG.map((item) => (
+            <div key={item.id} className="pizza-card" onClick={() => handleOpenCustomize(item)}>
+              <div className="pizza-img-placeholder">
+                <span className="placeholder-icon">📷</span>
+              </div>
+              <div className="pizza-card-info">
+                <h3>{item.name}</h3>
+                <p className="price">od {item.price.toFixed(2)}€</p>
+                <p className="description">{item.description}</p>
+              </div>
+            </div>
+          ))}
+        </main>
+      </div>
+    );
+  }
+
+  if (view === 'customize' && selectedPizza) {
+    return (
+      <div className="kiosk-container white-bg">
+        <header className="kiosk-header-white">
+          <button className="back-btn" onClick={() => setView('menu')}>&times; Späť do Menu</button>
+          <h2>Prispôsobte si výber</h2>
+          <button className="cart-icon-btn red" onClick={() => setView('cart')}>
+            🛒
+            {getCartItemsCount() > 0 && <span className="cart-badge">{getCartItemsCount()}</span>}
+          </button>
+        </header>
+
+        <main className="customize-layout">
+          <div className="customize-left">
+            <div className="pizza-img-large-placeholder">
+               <span className="placeholder-icon">📷</span>
+            </div>
+            <h1>{selectedPizza.name}</h1>
+            <p className="description-large">{selectedPizza.description}</p>
+          </div>
+
+          <div className="customize-right">
+            <div className="section">
+              <h3>Zvoľ veľkosť</h3>
+              <div className="size-selector">
+                {['Malá', 'Stredná', 'Veľká', 'Extra'].map(s => (
+                  <button 
+                    key={s} 
+                    className={`size-btn ${selectedSize === s ? 'active' : ''}`}
+                    onClick={() => setSelectedSize(s)}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="section">
+              <h3>Pridaj doplnky</h3>
+              <div className="addons-list">
+                {ADDONS.map(addon => (
+                  <div 
+                    key={addon.name} 
+                    className="addon-item"
+                    onClick={() => toggleAddon(addon.name)}
+                  >
+                    <span>{addon.name}</span>
+                    <span className="addon-price">+{addon.price.toFixed(2)}€</span>
+                    <div className={`checkbox ${selectedAddons.includes(addon.name) ? 'checked' : ''}`}></div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="section qty-section">
+              <h3>Počet</h3>
+              <div className="qty-selector">
+                <button onClick={() => setQuantity(Math.max(1, quantity - 1))}>-</button>
+                <span>{quantity}</span>
+                <button onClick={() => setQuantity(quantity + 1)}>+</button>
+              </div>
+            </div>
+
+            <button className="add-to-cart-btn" onClick={addToCart}>
+              🛒 Pridať do košíka - {calculateItemTotal().toFixed(2)}€
+            </button>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (view === 'cart') {
+    return (
+      <div className="kiosk-container white-bg cart-view">
+        <header className="kiosk-header-white">
+          <button className="back-btn" onClick={() => setView('menu')}>&times; Späť</button>
+          <h2>Váš košík</h2>
+        </header>
+
+        <main className="cart-main">
+          {error && <div className="alert alert-error">{error}</div>}
           {orderSuccess && (
-            <div className="alert-success">
-              🎉 Order #{orderSuccess} placed successfully! Please pay at the counter.
+            <div className="alert alert-success">
+              🎉 Objednávka #{orderSuccess} bola úspešne zaplatená a odoslaná do kuchyne!
             </div>
           )}
 
-          <div className="cart-items">
-            {cart.length === 0 ? (
-              <p className="empty-cart">Your cart is empty.</p>
-            ) : (
-              cart.map((item, idx) => (
-                <div key={idx} className="cart-item">
-                  <span className="item-qty">{item.quantity}x</span>
-                  <span className="item-name">{item.custom_note?.replace('Item: ', '')}</span>
-                  <span className="item-total">${(item.quantity * item.unit_price).toFixed(2)}</span>
-                </div>
-              ))
-            )}
-          </div>
-
-          <div className="cart-footer">
-            <div className="total-row">
-              <span>Total:</span>
-              <span>${calculateTotal()}</span>
+          {!orderSuccess && cart.length === 0 && (
+            <div className="empty-cart-msg">
+              <p>Váš košík je prázdny.</p>
+              <button className="back-to-menu-btn" onClick={() => setView('menu')}>Zobraziť menu</button>
             </div>
-            <button
-              className={`checkout-btn ${cart.length === 0 || isSubmitting ? 'disabled' : ''}`}
-              onClick={handleCheckout}
-              disabled={cart.length === 0 || isSubmitting}
-            >
-              {isSubmitting ? 'Processing...' : 'Place Order & Pay'}
-            </button>
-          </div>
-        </aside>
-      </main>
-    </div>
-  );
+          )}
+
+          {!orderSuccess && cart.length > 0 && (
+            <>
+              <div className="cart-items-list">
+                {cart.map((item, idx) => (
+                  <div key={idx} className="cart-item-row">
+                    <div className="cart-item-qty">{item.quantity}x</div>
+                    <div className="cart-item-info">
+                      <div className="cart-item-name">{item.custom_note}</div>
+                    </div>
+                    <div className="cart-item-price">{(item.quantity * item.unit_price).toFixed(2)}€</div>
+                  </div>
+                ))}
+              </div>
+              
+              <div className="cart-summary">
+                <div className="cart-total-row">
+                  <span>Spolu k úhrade:</span>
+                  <span>{calculateCartTotal()}€</span>
+                </div>
+                <button 
+                  className={`checkout-btn-large ${isSubmitting ? 'disabled' : ''}`}
+                  onClick={handleCheckout}
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? 'Spracovávam...' : 'Zaplatiť objednávku'}
+                </button>
+              </div>
+            </>
+          )}
+        </main>
+      </div>
+    );
+  }
+
+  return null;
 };

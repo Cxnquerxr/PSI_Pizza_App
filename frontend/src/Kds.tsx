@@ -7,13 +7,15 @@ export const Kds: React.FC = () => {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Modal state
+  const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   useEffect(() => {
-    // 1. Initial Fetch
     const fetchActiveOrders = async () => {
       try {
         const allOrders = await getOrders();
-        // Filter to active kitchen orders
         const active = allOrders.filter(
           (o: any) => o.status === 'PAID' || o.status === 'PREPARING'
         );
@@ -27,31 +29,23 @@ export const Kds: React.FC = () => {
 
     fetchActiveOrders();
 
-    // 2. WebSocket Listeners
     const onOrderCreated = (payload: any) => {
-      console.log('KDS: Order Created', payload);
-      // Even if Kiosk creates it as PENDING_PAYMENT, we only care when it's PAID.
-      // But if Kiosk created it as PAID directly, we add it.
       if (payload.status === 'PAID' || payload.status === 'PREPARING') {
         setOrders((prev) => [...prev, payload.order]);
       }
     };
 
     const onOrderUpdated = (payload: any) => {
-      console.log('KDS: Order Updated', payload);
       setOrders((prev) => {
         const exists = prev.find((o) => o.id === payload.order.id);
         
-        // If it was moved to a terminal/non-kitchen state (READY, DELIVERED, REJECTED), remove it
         if (['READY', 'DELIVERED', 'REJECTED'].includes(payload.status)) {
           return prev.filter((o) => o.id !== payload.order.id);
         }
 
         if (exists) {
-          // Update existing
           return prev.map((o) => (o.id === payload.order.id ? payload.order : o));
         } else if (payload.status === 'PAID') {
-          // It just became PAID, add it
           return [...prev, payload.order];
         }
 
@@ -69,76 +63,158 @@ export const Kds: React.FC = () => {
   }, []);
 
   const handleAction = async (id: number, newStatus: string) => {
+    setIsUpdating(true);
     try {
       await updateOrderStatus(id, newStatus);
-      // We don't necessarily need to update local state immediately because 
-      // the WebSocket will emit 'order.updated' and update it for us globally!
+      setSelectedOrder(null);
     } catch (err: any) {
       alert(`Error: ${err.message}`);
+    } finally {
+      setIsUpdating(false);
     }
   };
 
-  if (loading) return <div className="kds-loading">Loading Kitchen Display...</div>;
-  if (error) return <div className="kds-error">Error: {error}</div>;
+  if (loading) return <div className="kds-loading">Načítavam...</div>;
+  if (error) return <div className="kds-error">Chyba: {error}</div>;
+
+  const waitingOrders = orders.filter(o => o.status === 'PAID');
+  const preparingOrders = orders.filter(o => o.status === 'PREPARING');
 
   return (
-    <div className="kds-container">
-      <header className="kds-header">
-        <h1>👨‍🍳 Kitchen Display System</h1>
-        <div className="kds-status">
-          <span className={`socket-indicator ${socket.connected ? 'online' : 'offline'}`}></span>
-          {socket.connected ? 'Live' : 'Disconnected'}
-        </div>
-      </header>
-
-      <main className="kds-board">
-        {orders.length === 0 ? (
-          <div className="empty-board">No active orders. Kitchen is clear!</div>
-        ) : (
-          <div className="orders-grid">
-            {orders.map((order) => (
-              <div key={order.id} className={`kds-ticket status-${order.status.toLowerCase()}`}>
-                <div className="ticket-header">
-                  <h2>Order #{order.id}</h2>
-                  <span className="time">{new Date(order.created_at).toLocaleTimeString()}</span>
-                </div>
-                
-                <div className="ticket-body">
-                  <ul>
-                    {order.items?.map((item: any, idx: number) => (
-                      <li key={idx}>
-                        <strong>{item.quantity}x</strong> {item.custom_note || `Product ${item.product_id}`}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                <div className="ticket-footer">
-                  <span className="status-badge">{order.status}</span>
-                  <div className="ticket-actions">
-                    {order.status === 'PAID' && (
-                      <button 
-                        className="btn-accept" 
-                        onClick={() => handleAction(order.id, 'PREPARING')}
-                      >
-                        Accept (In Progress)
-                      </button>
-                    )}
-                    {order.status === 'PREPARING' && (
-                      <button 
-                        className="btn-complete" 
-                        onClick={() => handleAction(order.id, 'READY')}
-                      >
-                        Complete (Done)
-                      </button>
-                    )}
+    <div className="kds-layout">
+      {/* HEADER IS NOW HANDLED BY COLUMN HEADERS IN THE DESIGN, 
+          BUT WE KEEP A SMALL GLOBAL BAR IF NEEDED. FOR NOW WE USE TWO COLUMNS ONLY. */}
+          
+      <div className="kds-columns">
+        
+        {/* LEFT COLUMN */}
+        <div className="kds-column kds-column-waiting">
+          <div className="column-header column-header-waiting">
+            <h2>Čakajúce objednávky</h2>
+          </div>
+          <div className="column-body">
+            {waitingOrders.map(order => (
+              <div 
+                key={order.id} 
+                className="kds-card waiting-card"
+                onClick={() => setSelectedOrder(order)}
+              >
+                <div className="card-top">
+                  <div className="card-id-red">#{order.id}</div>
+                  <div className="card-title">
+                    {/* Display the first item's name or custom logic */}
+                    {order.items && order.items.length > 0 
+                      ? order.items[0].custom_note?.split('(')[0] || 'Objednávka' 
+                      : 'Neznáma Objednávka'}
                   </div>
+                  <div className="card-tag orange-tag">NOVÁ</div>
+                </div>
+                <div className="card-time">
+                  Čas objednávky: {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </div>
               </div>
             ))}
           </div>
-        )}
-      </main>
+        </div>
+
+        {/* RIGHT COLUMN */}
+        <div className="kds-column kds-column-preparing">
+          <div className="column-header column-header-preparing">
+            <h2>Pripravované objednávky</h2>
+          </div>
+          <div className="column-body">
+            {preparingOrders.map(order => (
+              <div 
+                key={order.id} 
+                className="kds-card preparing-card"
+                onClick={() => setSelectedOrder(order)}
+              >
+                <div className="card-top">
+                  <div className="card-id-green">#{order.id}</div>
+                  <div className="card-title">
+                    {order.items && order.items.length > 0 
+                      ? order.items[0].custom_note?.split('(')[0] || 'Objednávka' 
+                      : 'Neznáma Objednávka'}
+                  </div>
+                  <div className="card-tag green-tag">GIUSEPPE</div>
+                </div>
+                <div className="card-time">
+                  Čas objednávky: {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+      </div>
+
+      {/* ACTION MODAL */}
+      {selectedOrder && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <div className={selectedOrder.status === 'PAID' ? 'card-id-red' : 'card-id-green'}>
+                #{selectedOrder.id}
+              </div>
+              <h2 className="modal-title">
+                {selectedOrder.items && selectedOrder.items.length > 0 
+                      ? selectedOrder.items[0].custom_note?.split('(')[0] || 'Objednávka' 
+                      : 'Neznáma Objednávka'}
+              </h2>
+            </div>
+            <div className="modal-time">
+              Čas objednávky: {new Date(selectedOrder.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </div>
+            
+            <div className="modal-items">
+              <ul>
+                {selectedOrder.items?.map((item: any, idx: number) => (
+                  <li key={idx}><strong>{item.quantity}x</strong> {item.custom_note}</li>
+                ))}
+              </ul>
+            </div>
+            
+            <div className="modal-actions">
+              {selectedOrder.status === 'PAID' && (
+                <>
+                  <button 
+                    className="btn-reject"
+                    onClick={() => handleAction(selectedOrder.id, 'REJECTED')}
+                    disabled={isUpdating}
+                  >
+                    Odmietnuť
+                  </button>
+                  <button 
+                    className="btn-accept"
+                    onClick={() => handleAction(selectedOrder.id, 'PREPARING')}
+                    disabled={isUpdating}
+                  >
+                    Prijať
+                  </button>
+                </>
+              )}
+              {selectedOrder.status === 'PREPARING' && (
+                <>
+                   <button 
+                    className="btn-cancel"
+                    onClick={() => setSelectedOrder(null)}
+                    disabled={isUpdating}
+                  >
+                    Zrušiť
+                  </button>
+                  <button 
+                    className="btn-finish"
+                    onClick={() => handleAction(selectedOrder.id, 'READY')}
+                    disabled={isUpdating}
+                  >
+                    Dokončiť
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

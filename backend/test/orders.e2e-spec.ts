@@ -52,7 +52,7 @@ describe('OrdersController (e2e)', () => {
   it('/orders (POST) - should create order and emit websocket event', async () => {
     const payload = {
       items: [
-        { product_id: 1, quantity: 2, unit_price: "10.00" }
+        { product_id: 1, quantity: 2, unit_price: 10.00 }
       ]
     };
 
@@ -82,7 +82,7 @@ describe('OrdersController (e2e)', () => {
     // 1. Create order first
     const createRes = await request(app.getHttpServer())
       .post('/orders')
-      .send({ items: [{ product_id: 1, quantity: 1, unit_price: "5.00" }] })
+      .send({ items: [{ product_id: 1, quantity: 1, unit_price: 5.00 }] })
       .expect(201);
     
     const orderId = createRes.body.id;
@@ -112,7 +112,7 @@ describe('OrdersController (e2e)', () => {
     // 1. Create order (Starts PENDING_PAYMENT)
     const createRes = await request(app.getHttpServer())
       .post('/orders')
-      .send({ items: [{ product_id: 1, quantity: 1, unit_price: "5.00" }] })
+      .send({ items: [{ product_id: 1, quantity: 1, unit_price: 5.00 }] })
       .expect(201);
     
     const orderId = createRes.body.id;

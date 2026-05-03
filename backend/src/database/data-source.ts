@@ -12,9 +12,9 @@ import { EmployeeOrder } from '../employees/entities/employee-order.entity';
 export const dataSourceOptions: DataSourceOptions = {
   type: 'postgres',
   host: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT, 10) || 5432,
+  port: parseInt(process.env.DB_PORT ?? '5432', 10),
   username: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD || 'postgres',
+  password: 'FuwaFuwaTime', //process.env.DB_PASSWORD || 'FuwaFuwaTime',
   database: process.env.DB_NAME || 'pizzeria',
   entities: [Order, OrderItem, Payment, Product, Pizza, Drink, Employee, EmployeeOrder],
   migrations: ['dist/database/migrations/*.js'],

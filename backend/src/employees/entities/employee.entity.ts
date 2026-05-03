@@ -15,6 +15,6 @@ export class Employee {
   @Column({ type: 'varchar', length: 50 })
   role: string;
 
-  @OneToMany(() => EmployeeOrder, (employeeOrder) => employeeOrder.employee)
+  @OneToMany(() => EmployeeOrder, (employeeOrder) => employeeOrder.cook)
   employeeOrders: EmployeeOrder[];
 }
