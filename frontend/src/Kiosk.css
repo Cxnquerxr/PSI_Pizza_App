@@ -1,0 +1,212 @@
+:root {
+  --primary-color: #ff4757;
+  --primary-hover: #ff6b81;
+  --bg-color: #1e272e;
+  --card-bg: #2f3542;
+  --text-main: #f1f2f6;
+  --text-muted: #a4b0be;
+  --accent: #2ed573;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-main);
+  height: 100vh;
+  overflow: hidden;
+}
+
+.kiosk-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.kiosk-header {
+  padding: 20px 40px;
+  background: rgba(47, 53, 66, 0.8);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  text-align: center;
+}
+
+.kiosk-header h1 {
+  margin: 0;
+  font-size: 2rem;
+  color: var(--primary-color);
+}
+
+.kiosk-header p {
+  margin: 5px 0 0;
+  color: var(--text-muted);
+}
+
+.kiosk-main {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.catalog-section {
+  flex: 2;
+  padding: 40px;
+  overflow-y: auto;
+}
+
+.catalog-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 20px;
+}
+
+.catalog-card {
+  background: var(--card-bg);
+  border-radius: 16px;
+  padding: 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 150px;
+}
+
+.catalog-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+  border-color: var(--primary-color);
+}
+
+.catalog-card h3 {
+  margin: 0 0 10px;
+  font-size: 1.2rem;
+}
+
+.catalog-card .price {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: var(--accent);
+  margin: 0 0 15px;
+}
+
+.add-btn {
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  font-size: 1.5rem;
+  cursor: pointer;
+  align-self: center;
+  transition: background 0.2s;
+}
+
+.catalog-card:hover .add-btn {
+  background: var(--primary-hover);
+}
+
+.cart-section {
+  flex: 1;
+  background: rgba(0, 0, 0, 0.2);
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 40px;
+  display: flex;
+  flex-direction: column;
+}
+
+.cart-items {
+  flex: 1;
+  overflow-y: auto;
+  margin: 20px 0;
+}
+
+.cart-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px;
+  background: var(--card-bg);
+  border-radius: 8px;
+  margin-bottom: 10px;
+}
+
+.item-qty {
+  font-weight: bold;
+  color: var(--primary-color);
+  width: 30px;
+}
+
+.item-name {
+  flex: 1;
+  margin: 0 10px;
+}
+
+.item-total {
+  font-weight: bold;
+}
+
+.empty-cart {
+  text-align: center;
+  color: var(--text-muted);
+  font-style: italic;
+  margin-top: 50px;
+}
+
+.cart-footer {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 20px;
+}
+
+.total-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 1.5rem;
+  font-weight: bold;
+  margin-bottom: 20px;
+}
+
+.checkout-btn {
+  width: 100%;
+  padding: 15px;
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: white;
+  background: var(--primary-color);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s, opacity 0.2s;
+}
+
+.checkout-btn:hover:not(.disabled) {
+  background: var(--primary-hover);
+}
+
+.checkout-btn.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.alert-success {
+  background: rgba(46, 213, 115, 0.2);
+  color: var(--accent);
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.alert-error {
+  background: rgba(255, 71, 87, 0.2);
+  color: var(--primary-color);
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  text-align: center;
+}

@@ -1,0 +1,171 @@
+.kds-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background-color: #111;
+  color: #fff;
+  font-family: 'Inter', sans-serif;
+}
+
+.kds-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 30px;
+  background-color: #222;
+  border-bottom: 2px solid #333;
+}
+
+.kds-header h1 {
+  margin: 0;
+  font-size: 1.8rem;
+  color: #f39c12; /* Kitchen theme orange */
+}
+
+.kds-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: bold;
+}
+
+.socket-indicator {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.socket-indicator.online {
+  background-color: #2ecc71;
+  box-shadow: 0 0 8px #2ecc71;
+}
+
+.socket-indicator.offline {
+  background-color: #e74c3c;
+}
+
+.kds-board {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.empty-board {
+  text-align: center;
+  font-size: 2rem;
+  color: #555;
+  margin-top: 100px;
+}
+
+.orders-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.kds-ticket {
+  background-color: #2c3e50;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  border-top: 5px solid transparent;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+}
+
+.kds-ticket.status-paid {
+  border-top-color: #e74c3c; /* Red means needs attention */
+}
+
+.kds-ticket.status-preparing {
+  border-top-color: #f1c40f; /* Yellow means in progress */
+}
+
+.ticket-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px;
+  background-color: rgba(0,0,0,0.2);
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.ticket-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.time {
+  color: #bdc3c7;
+  font-size: 0.9rem;
+}
+
+.ticket-body {
+  padding: 15px;
+  flex: 1;
+}
+
+.ticket-body ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.ticket-body li {
+  font-size: 1.2rem;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px dashed rgba(255,255,255,0.1);
+}
+
+.ticket-body li:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.ticket-body strong {
+  color: #f39c12;
+  margin-right: 10px;
+}
+
+.ticket-footer {
+  padding: 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: rgba(0,0,0,0.2);
+}
+
+.status-badge {
+  background-color: rgba(255,255,255,0.1);
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
+.ticket-actions button {
+  padding: 10px 20px;
+  font-size: 1rem;
+  font-weight: bold;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+
+.ticket-actions button:active {
+  transform: scale(0.95);
+}
+
+.btn-accept {
+  background-color: #3498db;
+  color: white;
+}
+
+.btn-complete {
+  background-color: #2ecc71;
+  color: white;
+}
