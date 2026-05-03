@@ -64,6 +64,22 @@ $ npm run test:cov
 $ npx ts-node -r tsconfig-paths/register seed.ts
 ```
 
+## Simulating payment terminal (operator curl commands)
+
+After a customer places an order on the Kiosk, the order enters `PENDING_PAYMENT` status and the
+Kiosk displays a "Prebieha platba..." waiting screen. The operator acts as the payment terminal
+by running one of the following curl commands. The Kiosk reacts in real-time via WebSocket.
+
+Replace `{ORDER_ID}` with the actual order ID shown on the Kiosk.
+
+```bash
+# Approve payment — order moves to PAID and appears in the Kitchen Display
+curl -X PATCH http://localhost:3000/orders/{ORDER_ID}/status -H "Content-Type: application/json" -d "{\"status\":\"PAID\"}"
+
+# Decline payment — Kiosk shows a "Platba zamietnutá" screen with retry option
+curl -X PATCH http://localhost:3000/orders/{ORDER_ID}/status -H "Content-Type: application/json" -d "{\"status\":\"REJECTED\"}"
+```
+
 ## Deployment
 
 When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.

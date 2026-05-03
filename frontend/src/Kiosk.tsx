@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { createOrder, updateOrderStatus } from './api';
+import React, { useState, useEffect, useRef } from 'react';
+import { createOrder } from './api';
 import type { OrderItemPayload } from './api';
+import { socket } from './socket';
 import './Kiosk.css';
 
 const CATALOG = [
@@ -23,13 +24,13 @@ const ADDONS = [
   { name: 'Čerstvé rajčiny', price: 1.0 },
 ];
 
-type ViewState = 'idle' | 'menu' | 'customize' | 'cart';
+type ViewState = 'idle' | 'menu' | 'customize' | 'cart' | 'payment_pending' | 'payment_declined';
 
 export const Kiosk: React.FC = () => {
   const [view, setView] = useState<ViewState>('idle');
   const [cart, setCart] = useState<OrderItemPayload[]>([]);
   const [selectedPizza, setSelectedPizza] = useState<typeof CATALOG[0] | null>(null);
-  
+
   // Customize state
   const [selectedSize, setSelectedSize] = useState('Stredná');
   const [selectedAddons, setSelectedAddons] = useState<string[]>([]);
@@ -37,8 +38,30 @@ export const Kiosk: React.FC = () => {
 
   // Cart/Checkout state
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [orderSuccess, setOrderSuccess] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [pendingOrderId, setPendingOrderId] = useState<number | null>(null);
+  // ref so the websocket handler always sees the current orderId
+  const pendingOrderIdRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const onOrderUpdated = (payload: any) => {
+      if (payload.order?.id !== pendingOrderIdRef.current) return;
+
+      if (payload.status === 'PAID') {
+        // Payment approved — show brief success then return to idle
+        setCart([]);
+        setPendingOrderId(null);
+        pendingOrderIdRef.current = null;
+        setView('idle');
+      } else if (payload.status === 'REJECTED') {
+        // Payment declined by operator
+        setView('payment_declined');
+      }
+    };
+
+    socket.on('order.updated', onOrderUpdated);
+    return () => { socket.off('order.updated', onOrderUpdated); };
+  }, []);
 
   const handleOpenCustomize = (pizza: typeof CATALOG[0]) => {
     setSelectedPizza(pizza);
@@ -49,7 +72,7 @@ export const Kiosk: React.FC = () => {
   };
 
   const toggleAddon = (addonName: string) => {
-    setSelectedAddons(prev => 
+    setSelectedAddons(prev =>
       prev.includes(addonName) ? prev.filter(a => a !== addonName) : [...prev, addonName]
     );
   };
@@ -61,7 +84,7 @@ export const Kiosk: React.FC = () => {
     if (selectedSize === 'Malá') base -= 1.0;
     if (selectedSize === 'Veľká') base += 2.0;
     if (selectedSize === 'Extra') base += 4.0;
-    
+
     let addonsCost = 0;
     selectedAddons.forEach(a => {
       const addon = ADDONS.find(x => x.name === a);
@@ -81,10 +104,10 @@ export const Kiosk: React.FC = () => {
 
   const addToCart = () => {
     if (!selectedPizza) return;
-    
-    const note = `${selectedPizza.name} (${selectedSize})` + 
-                 (selectedAddons.length > 0 ? ` + ${selectedAddons.join(', ')}` : '');
-    
+
+    const note = `${selectedPizza.name} (${selectedSize})` +
+      (selectedAddons.length > 0 ? ` + ${selectedAddons.join(', ')}` : '');
+
     const unitPrice = calculateItemTotal() / quantity;
 
     setCart(prev => [
@@ -105,26 +128,15 @@ export const Kiosk: React.FC = () => {
 
     setIsSubmitting(true);
     setError(null);
-    setOrderSuccess(null);
 
     try {
-      // 1. Create the order
+      // Create the order — operator must confirm/decline via curl
       const order = await createOrder({ items: cart });
-      
-      // 2. Automatically simulate payment since we have no physical terminal
-      await updateOrderStatus(order.id, 'PAID');
-      
-      setOrderSuccess(order.id);
-      setCart([]);
-      
-      // Auto return to idle after 5 seconds
-      setTimeout(() => {
-        setView('idle');
-        setOrderSuccess(null);
-      }, 5000);
-      
+      setPendingOrderId(order.id);
+      pendingOrderIdRef.current = order.id;
+      setView('payment_pending');
     } catch (err: any) {
-      setError(err.message || 'Failed to checkout');
+      setError(err.message || 'Objednávku sa nepodarilo odoslať.');
     } finally {
       setIsSubmitting(false);
     }
@@ -194,7 +206,7 @@ export const Kiosk: React.FC = () => {
         <main className="customize-layout">
           <div className="customize-left">
             <div className="pizza-img-large-placeholder">
-               <span className="placeholder-icon">📷</span>
+              <span className="placeholder-icon">📷</span>
             </div>
             <h1>{selectedPizza.name}</h1>
             <p className="description-large">{selectedPizza.description}</p>
@@ -205,8 +217,8 @@ export const Kiosk: React.FC = () => {
               <h3>Zvoľ veľkosť</h3>
               <div className="size-selector">
                 {['Malá', 'Stredná', 'Veľká', 'Extra'].map(s => (
-                  <button 
-                    key={s} 
+                  <button
+                    key={s}
                     className={`size-btn ${selectedSize === s ? 'active' : ''}`}
                     onClick={() => setSelectedSize(s)}
                   >
@@ -220,8 +232,8 @@ export const Kiosk: React.FC = () => {
               <h3>Pridaj doplnky</h3>
               <div className="addons-list">
                 {ADDONS.map(addon => (
-                  <div 
-                    key={addon.name} 
+                  <div
+                    key={addon.name}
                     className="addon-item"
                     onClick={() => toggleAddon(addon.name)}
                   >
@@ -261,20 +273,15 @@ export const Kiosk: React.FC = () => {
 
         <main className="cart-main">
           {error && <div className="alert alert-error">{error}</div>}
-          {orderSuccess && (
-            <div className="alert alert-success">
-              🎉 Objednávka #{orderSuccess} bola úspešne zaplatená a odoslaná do kuchyne!
-            </div>
-          )}
 
-          {!orderSuccess && cart.length === 0 && (
+          {cart.length === 0 && (
             <div className="empty-cart-msg">
               <p>Váš košík je prázdny.</p>
               <button className="back-to-menu-btn" onClick={() => setView('menu')}>Zobraziť menu</button>
             </div>
           )}
 
-          {!orderSuccess && cart.length > 0 && (
+          {cart.length > 0 && (
             <>
               <div className="cart-items-list">
                 {cart.map((item, idx) => (
@@ -287,13 +294,13 @@ export const Kiosk: React.FC = () => {
                   </div>
                 ))}
               </div>
-              
+
               <div className="cart-summary">
                 <div className="cart-total-row">
                   <span>Spolu k úhrade:</span>
                   <span>{calculateCartTotal()}€</span>
                 </div>
-                <button 
+                <button
                   className={`checkout-btn-large ${isSubmitting ? 'disabled' : ''}`}
                   onClick={handleCheckout}
                   disabled={isSubmitting}
@@ -304,6 +311,44 @@ export const Kiosk: React.FC = () => {
             </>
           )}
         </main>
+      </div>
+    );
+  }
+
+  if (view === 'payment_pending') {
+    return (
+      <div className="kiosk-payment-pending">
+        <div className="payment-pending-content">
+          <div className="payment-spinner"></div>
+          <h2>Prebieha platba</h2>
+          <p>Vaša objednávka <strong>#{pendingOrderId}</strong> čaká na potvrdenie platieb.</p>
+          <p className="payment-hint">Operator používa platobný terminál na potvrdenie alebo zamietnutie platby.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (view === 'payment_declined') {
+    return (
+      <div className="kiosk-payment-declined">
+        <div className="payment-declined-content">
+          <div className="declined-icon">❌</div>
+          <h2>Platba zamietnutá</h2>
+          <p>Vaša platba nebola úspešná. Skúšte znova alebo zvoľte iný spôsob platby.</p>
+          <div className="declined-actions">
+            <button className="btn-retry" onClick={() => {
+              setPendingOrderId(null);
+              pendingOrderIdRef.current = null;
+              setView('cart');
+            }}>Skúšiť znova</button>
+            <button className="btn-cancel-order" onClick={() => {
+              setPendingOrderId(null);
+              pendingOrderIdRef.current = null;
+              setCart([]);
+              setView('idle');
+            }}>Zrušiť objednávku</button>
+          </div>
+        </div>
       </div>
     );
   }

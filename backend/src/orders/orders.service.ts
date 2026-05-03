@@ -5,12 +5,15 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { Order } from './entities/order.entity';
 import { OrderStatus } from './enums/order-status.enum';
 import { EventsGateway } from '../events/events.gateway';
+import { Payment } from '../payments/entities/payment.entity';
 
 @Injectable()
 export class OrdersService {
   constructor(
     @InjectRepository(Order)
     private readonly ordersRepository: Repository<Order>,
+    @InjectRepository(Payment)
+    private readonly paymentsRepository: Repository<Payment>,
     private readonly eventsGateway: EventsGateway,
   ) {}
 
@@ -72,6 +75,17 @@ export class OrdersService {
     order.status = newStatus;
     const updatedOrder = await this.ordersRepository.save(order);
 
+    // When an order is paid, record the payment in the payments table
+    if (newStatus === OrderStatus.PAID) {
+      const payment = this.paymentsRepository.create({
+        order_id: updatedOrder.id,
+        paid_sum: Number(updatedOrder.total_price),
+        payment_state: 'COMPLETED',
+        type: 'CARD',
+      });
+      await this.paymentsRepository.save(payment);
+    }
+
     // Broadcast status update after successful DB commit
     this.eventsGateway.broadcastOrderUpdated(updatedOrder);
     
@@ -97,7 +111,7 @@ export class OrdersService {
 
     switch (currentStatus) {
       case OrderStatus.PENDING_PAYMENT:
-        return newStatus === OrderStatus.PAID;
+        return newStatus === OrderStatus.PAID || newStatus === OrderStatus.REJECTED;
       case OrderStatus.PAID:
         return newStatus === OrderStatus.PREPARING || newStatus === OrderStatus.REJECTED;
       case OrderStatus.PREPARING:

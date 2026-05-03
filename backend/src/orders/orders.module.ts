@@ -5,10 +5,11 @@ import { OrdersService } from './orders.service';
 import { EventsModule } from '../events/events.module';
 import { Order } from './entities/order.entity';
 import { OrderItem } from './entities/order-item.entity';
+import { Payment } from '../payments/entities/payment.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Order, OrderItem]),
+    TypeOrmModule.forFeature([Order, OrderItem, Payment]),
     EventsModule
   ],
   controllers: [OrdersController],

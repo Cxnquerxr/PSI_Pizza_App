@@ -586,3 +586,128 @@ body {
   color: var(--primary-red);
   border: 1px solid rgba(230, 0, 0, 0.3);
 }
+
+/* --- Payment Pending Screen --- */
+.kiosk-payment-pending {
+  height: 100vh;
+  width: 100vw;
+  background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  text-align: center;
+}
+
+.payment-pending-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding: 40px;
+}
+
+.payment-pending-content h2 {
+  font-size: 2.5rem;
+  margin: 0;
+}
+
+.payment-pending-content p {
+  font-size: 1.3rem;
+  opacity: 0.85;
+  margin: 0;
+}
+
+.payment-hint {
+  font-size: 1rem !important;
+  opacity: 0.5 !important;
+  max-width: 400px;
+}
+
+.payment-spinner {
+  width: 80px;
+  height: 80px;
+  border: 6px solid rgba(255, 255, 255, 0.15);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* --- Payment Declined Screen --- */
+.kiosk-payment-declined {
+  height: 100vh;
+  width: 100vw;
+  background: linear-gradient(180deg, #2d0000 0%, #1a0000 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  text-align: center;
+}
+
+.payment-declined-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding: 40px;
+  max-width: 500px;
+}
+
+.declined-icon {
+  font-size: 80px;
+}
+
+.payment-declined-content h2 {
+  font-size: 2.5rem;
+  margin: 0;
+}
+
+.payment-declined-content p {
+  font-size: 1.2rem;
+  opacity: 0.85;
+  margin: 0;
+}
+
+.declined-actions {
+  display: flex;
+  gap: 15px;
+  margin-top: 10px;
+}
+
+.btn-retry {
+  background: var(--primary-red);
+  color: white;
+  border: none;
+  padding: 15px 30px;
+  font-size: 1.2rem;
+  font-weight: bold;
+  border-radius: 30px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.btn-retry:hover {
+  opacity: 0.85;
+}
+
+.btn-cancel-order {
+  background: transparent;
+  color: white;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  padding: 15px 30px;
+  font-size: 1.2rem;
+  font-weight: bold;
+  border-radius: 30px;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.btn-cancel-order:hover {
+  border-color: white;
+}
+

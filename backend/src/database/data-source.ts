@@ -14,7 +14,7 @@ export const dataSourceOptions: DataSourceOptions = {
   host: process.env.DB_HOST || 'localhost',
   port: parseInt(process.env.DB_PORT ?? '5432', 10),
   username: process.env.DB_USER || 'postgres',
-  password: 'FuwaFuwaTime', //process.env.DB_PASSWORD || 'FuwaFuwaTime',
+  password: process.env.DB_PASSWORD || 'postgres',
   database: process.env.DB_NAME || 'pizzeria',
   entities: [Order, OrderItem, Payment, Product, Pizza, Drink, Employee, EmployeeOrder],
   migrations: ['dist/database/migrations/*.js'],
