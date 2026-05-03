@@ -57,12 +57,18 @@ $ npm run test:e2e
 $ npm run test:cov
 ```
 
-## Seed database
+## First-time database setup
+
+Run this **once** after `npm install` (or after a database reset). It compiles the project,
+applies all pending TypeORM migrations, and inserts the demo products and employees required
+for the Kiosk to function correctly.
 
 ```bash
-# seed db with current items
-$ npx ts-node -r tsconfig-paths/register seed.ts
+$ npm run setup:db
 ```
+
+The script is idempotent — running it again on an already-configured database is safe and
+will simply report that no new migrations need to run.
 
 ## Simulating payment terminal (operator curl commands)
 
