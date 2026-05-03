@@ -1,73 +1,99 @@
-# React + TypeScript + Vite
+# Pizza Paradise — OMS Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React + TypeScript client for the Pizza Paradise Order Management System. Runs two distinct UIs from a single application: the **Kiosk** (customer-facing touch screen) and the **Kitchen Display System** (KDS).
 
-Currently, two official plugins are available:
+**Stack:** React · TypeScript · Vite · Socket.IO Client · CSS
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+---
 
-## React Compiler
+## Overview
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+The frontend connects to the OMS backend over HTTP (REST) and WebSockets (Socket.IO). All order state changes are reflected in real-time on both screens simultaneously — no polling required.
 
-## Expanding the ESLint configuration
+Switch between the two UIs using the floating toggle button in the bottom-right corner of the browser window.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+---
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## Kiosk
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+A touch-friendly ordering flow split into five screens:
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+| Screen | Description |
+|---|---|
+| **Idle** | Full-screen welcome animation. Tap anywhere to begin. |
+| **Menu** | Grid of all available pizzas with name, description, and base price. |
+| **Customize** | Select size (Malá / Stredná / Veľká / Extra), add toppings, and set quantity. Price updates in real time. |
+| **Cart** | Review all items and their totals. Tap "Zaplatiť objednávku" to send the order to the backend. |
+| **Payment pending** | Spinner screen displayed while waiting for an operator to confirm or decline the payment via the backend API. Reacts instantly to the operator's curl command via WebSocket. |
+| **Payment declined** | Shown when the operator rejects the payment. The customer can retry or cancel. |
+
+---
+
+## Kitchen Display System (KDS)
+
+A split-screen board visible to kitchen staff:
+
+| Column | Colour | Content |
+|---|---|---|
+| **Čakajúce objednávky** | Red gradient | Orders in `PAID` status — new, waiting to be accepted |
+| **Pripravované objednávky** | Orange gradient | Orders in `PREPARING` status — actively being cooked |
+
+Clicking any order card opens an **action modal** with the full order details and context-sensitive buttons:
+
+- **PAID orders** → "Prijať" (accept → `PREPARING`) or "Odmietnuť" (reject → `REJECTED`)
+- **PREPARING orders** → "Dokončiť" (done → `READY`)
+
+---
+
+## Prerequisites
+
+- Node.js ≥ 18
+- The OMS backend running at `http://localhost:3000`
+
+---
+
+## Getting started
+
+```bash
+# Install dependencies
+npm install
+
+# Start the development server
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+The app will be available at `http://localhost:5173`.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+> Make sure the backend is running first (`npm run start:dev` in the `backend/` directory).
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+---
+
+## Available scripts
+
+| Command | Description |
+|---|---|
+| `npm run dev` | Start Vite dev server with hot reload |
+| `npm run build` | Compile and bundle for production |
+| `npm run preview` | Preview the production build locally |
+
+---
+
+## Project structure
+
 ```
+src/
+├── main.tsx          # React entry point
+├── App.tsx           # Root component — view switcher (Kiosk ↔ KDS)
+├── api.ts            # HTTP helpers (createOrder, getOrders, updateOrderStatus)
+├── socket.ts         # Shared Socket.IO client instance
+├── Kiosk.tsx         # Full kiosk ordering flow
+├── Kiosk.css         # Kiosk styles
+├── Kds.tsx           # Kitchen Display System
+└── Kds.css           # KDS styles
+```
+
+---
+
+## Configuration
+
+The backend URL is hardcoded to `http://localhost:3000` in `src/api.ts` and `src/socket.ts`. Update both files if you deploy the backend to a different host.

@@ -1,127 +1,176 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Pizza Paradise — OMS Backend
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+REST API and WebSocket server for the Pizza Paradise Order Management System.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+**Stack:** NestJS · TypeORM · PostgreSQL · Socket.IO
 
-## Description
+---
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Overview
 
-## Project setup
+The backend is the central hub of the OMS. It exposes a RESTful HTTP API consumed by the Kiosk and persists all order data to PostgreSQL. Real-time events are broadcast to connected clients (Kiosk + Kitchen Display) over Socket.IO WebSockets, so every status change appears instantly across all screens without polling.
 
-```bash
-$ npm install
+### Order lifecycle
+
+```
+PENDING_PAYMENT ──► PAID ──► PREPARING ──► READY ──► DELIVERED
+        │                │
+        └────────────────┴──► REJECTED
 ```
 
-## Compile and run the project
+| Status | Triggered by |
+|---|---|
+| `PENDING_PAYMENT` | Kiosk places order (`POST /orders`) |
+| `PAID` | Operator approves payment via curl |
+| `REJECTED` | Operator declines payment via curl, or kitchen rejects |
+| `PREPARING` | Kitchen accepts the order (KDS modal) |
+| `READY` | Kitchen marks order as done (KDS modal) |
+| `DELIVERED` | Order handed to customer |
 
-```bash
-# development
-$ npm run start
+---
 
-# watch mode
-$ npm run start:dev
+## Prerequisites
 
-# production mode
-$ npm run start:prod
+- Node.js ≥ 18
+- PostgreSQL running locally (default port 5432, database `pizzeria`)
+
+Create the database if it doesn't exist yet:
+```sql
+CREATE DATABASE pizzeria;
 ```
 
-## Run tests
-
-```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+Configure credentials in `.env` (copy from `.env.example` if present):
+```env
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=postgres
+DB_PASSWORD=postgres
+DB_NAME=pizzeria
 ```
 
-## First-time database setup
+---
 
-Run this **once** after `npm install` (or after a database reset). It compiles the project,
-applies all pending TypeORM migrations, and inserts the demo products and employees required
-for the Kiosk to function correctly.
+## Getting started
 
 ```bash
-$ npm run setup:db
+# 1. Install dependencies
+npm install
+
+# 2. Run migrations and seed demo data (products + employees)
+npm run setup:db
+
+# 3. Start the development server
+npm run start:dev
 ```
 
-The script is idempotent — running it again on an already-configured database is safe and
-will simply report that no new migrations need to run.
+The API will be available at `http://localhost:3000`.
 
-## Simulating payment terminal (operator curl commands)
+---
 
-After a customer places an order on the Kiosk, the order enters `PENDING_PAYMENT` status and the
-Kiosk displays a "Prebieha platba..." waiting screen. The operator acts as the payment terminal
-by running one of the following curl commands. The Kiosk reacts in real-time via WebSocket.
+## Available scripts
 
-Replace `{ORDER_ID}` with the actual order ID shown on the Kiosk.
+| Command | Description |
+|---|---|
+| `npm run start:dev` | Start in watch mode (auto-reloads on file changes) |
+| `npm run start` | Start once (no watch) |
+| `npm run build` | Compile TypeScript to `dist/` |
+| `npm run setup:db` | Run migrations + seed demo data |
+| `npm run test` | Unit tests |
+| `npm run test:e2e` | End-to-end integration tests |
+| `npm run test:cov` | Test coverage report |
+
+---
+
+## Database setup (`npm run setup:db`)
+
+The `setup:db` script is **idempotent** — safe to run multiple times. It will:
+
+1. Connect to PostgreSQL
+2. Apply any pending TypeORM migrations (creates all tables on a fresh database)
+3. Insert the 6 demo pizzas into `products` (skips existing rows)
+4. Insert 2 demo employees — a cook and a waiter — into `employees` (skips existing rows)
+5. Print a summary table of what is now in the database
+
+---
+
+## REST API
+
+All endpoints are prefixed at `http://localhost:3000`.
+
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/orders` | Place a new order (Kiosk checkout) |
+| `GET` | `/orders` | List all orders |
+| `GET` | `/orders/:id` | Get a single order with its items and payments |
+| `PATCH` | `/orders/:id/status` | Transition an order to a new status |
+
+### Place an order — `POST /orders`
+
+```json
+{
+  "items": [
+    { "product_id": 1, "quantity": 2, "unit_price": 7.90, "custom_note": "Margherita (Stredná)" }
+  ]
+}
+```
+
+### Update status — `PATCH /orders/:id/status`
+
+```json
+{ "status": "PAID" }
+```
+
+---
+
+## Simulating the payment terminal
+
+After a customer checks out on the Kiosk, the order enters `PENDING_PAYMENT` and the Kiosk shows a waiting screen. An operator approves or declines the payment using curl.
+
+Replace `{ORDER_ID}` with the actual order ID shown on the Kiosk screen.
 
 ```bash
-# Approve payment — order moves to PAID and appears in the Kitchen Display
+# ✅ Approve — order moves to PAID and appears in the Kitchen Display
 curl -X PATCH http://localhost:3000/orders/{ORDER_ID}/status -H "Content-Type: application/json" -d "{\"status\":\"PAID\"}"
 
-# Decline payment — Kiosk shows a "Platba zamietnutá" screen with retry option
+# ❌ Decline — Kiosk shows a "Platba zamietnutá" screen with a retry option
 curl -X PATCH http://localhost:3000/orders/{ORDER_ID}/status -H "Content-Type: application/json" -d "{\"status\":\"REJECTED\"}"
 ```
 
-## Deployment
+---
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+## WebSocket events
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+Clients connect to the Socket.IO server at `http://localhost:3000`. The backend emits:
 
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+| Event | Payload | When |
+|---|---|---|
+| `order.created` | `{ order, status }` | A new order is placed |
+| `order.updated` | `{ order, status }` | Any status transition occurs |
+
+---
+
+## Project structure
+
 ```
-
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+src/
+├── app.module.ts           # Root module
+├── main.ts                 # Bootstrap (CORS, ValidationPipe, port)
+├── database/
+│   ├── database.module.ts  # TypeORM connection (reads from ConfigService/.env)
+│   ├── data-source.ts      # CLI DataSource (used by migrations & setup-db)
+│   └── migrations/         # TypeORM migration files
+├── events/
+│   ├── events.module.ts
+│   └── events.gateway.ts   # Socket.IO gateway — broadcasts order events
+├── orders/
+│   ├── orders.controller.ts
+│   ├── orders.service.ts   # Business logic & state machine
+│   ├── dto/
+│   └── entities/
+├── payments/
+│   └── entities/
+├── products/
+│   └── entities/           # Pizza, Drink (single-table inheritance)
+└── employees/
+    └── entities/           # Employee, EmployeeOrder
+```
